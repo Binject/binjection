@@ -1,35 +1,24 @@
 package bj
 
-import (
-	"errors"
-	"fmt"
-	"io/ioutil"
-
-	"github.com/h2non/filetype"
-)
-
+// BinjectConfig - Configuration Settings for the Binject modules
 type BinjectConfig struct {
 	CodeCaveMode bool
 }
 
+// Binject - Inject shellcode into a binary
 func Binject(sourceFile string, destFile string, shellcode string, config *BinjectConfig) error {
 
-	buf, err := ioutil.ReadFile(sourceFile)
-	if err != nil {
+	binType, err := BinaryMagic(sourceFile)
+	var binject func(string, string, string, *BinjectConfig) error
+	switch binType {
+	case ELF:
+		binject = ElfBinject
+	case MACHO:
+		binject = MachoBinject
+	case PE:
+		binject = PeBinject
+	case ERROR:
 		return err
 	}
-
-	kind, unknown := filetype.Match(buf)
-	if unknown != nil {
-		return errors.New("Unknown: " + unknown.Error())
-
-	}
-
-	fmt.Printf("File type: %s. MIME: %s\n", kind.Extension, kind.MIME.Value)
-	return nil
-}
-
-//
-type Binjector interface {
-	Inject(sourceFile string, destFile string, shellcode string, mode int)
+	return binject(sourceFile, destFile, shellcode, config)
 }
