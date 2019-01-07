@@ -26,7 +26,7 @@ func BinaryMagic(filename string) (int, error) {
 		return ERROR, err
 	}
 
-	log.Println(buf[:4])
+	log.Printf("%x\n", buf[:4])
 
 	if bytes.Equal(buf[:4], []byte{0x7F, 'E', 'L', 'F'}) {
 		return ELF, nil
