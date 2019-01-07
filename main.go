@@ -9,16 +9,22 @@ import (
 
 func main() {
 
-	var srcFile, dstFile, shellFile string
-	var codeCaveMode bool
+	var srcFile = flag.String("inFile", "a.out", "Input file to inject into")
+	flag.StringVar(srcFile, "i", "a.out", "Input file to inject into")
+	flag.StringVar(srcFile, "input", "a.out", "Input file to inject into")
 
-	flag.StringVar(&srcFile, "srcFile", "a.out", "Input file to inject into")
-	flag.StringVar(&dstFile, "dstFile", "injected.out", "Output file")
-	flag.StringVar(&shellFile, "shellFile", "shell.asm", "Shellcode to inject")
-	flag.BoolVar(&codeCaveMode, "codeCaveMode", false, "Auto Code Cave Mode (true/false)")
+	var dstFile = flag.String("dstFile", "injected.out", "Output file")
+	flag.StringVar(dstFile, "d", "injected.out", "Output file")
+
+	var shellFile = flag.String("shellFile", "shell.asm", "Shellcode to inject")
+	flag.StringVar(shellFile, "s", "shell.asm", "Shellcode to inject")
+
+	var codeCaveMode = flag.Bool("codeCaveMode", false, "Auto Code Cave Mode (true/false)")
+	flag.BoolVar(codeCaveMode, "c", false, "Auto Code Cave Mode (true/false)")
+
 	flag.Parse()
 
-	err := bj.Binject(srcFile, dstFile, shellFile, &bj.BinjectConfig{CodeCaveMode: codeCaveMode})
+	err := bj.Binject(*srcFile, *dstFile, *shellFile, &bj.BinjectConfig{CodeCaveMode: *codeCaveMode})
 
 	log.Println(err)
 }
