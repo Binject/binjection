@@ -19,8 +19,8 @@ func main() {
 	var shellFile = flag.String("shellFile", "shell.asm", "Shellcode to inject")
 	flag.StringVar(shellFile, "s", "shell.asm", "Shellcode to inject")
 
-	var codeCaveMode = flag.Bool("codeCaveMode", false, "Auto Code Cave Mode (true/false)")
-	flag.BoolVar(codeCaveMode, "c", false, "Auto Code Cave Mode (true/false)")
+	var codeCaveMode = flag.Bool("codeCaveMode", true, "Auto Code Cave Mode (true/false)")
+	flag.BoolVar(codeCaveMode, "c", true, "Auto Code Cave Mode (true/false)")
 
 	flag.Parse()
 

@@ -16,7 +16,13 @@ const (
 	MACHO = iota
 	// PE - constant for PE binary format
 	PE = iota
+	// MIN_CAVE_SIZE - the smallest a code cave can be
+	MIN_CAVE_SIZE = 94
 )
+
+type Cave struct {
+	Start, End uint64
+}
 
 // BinaryMagic - Identifies the Binary Format of a file by looking at its magic number
 func BinaryMagic(filename string) (int, error) {
@@ -53,4 +59,29 @@ func BinaryMagic(filename string) (int, error) {
 	}
 
 	return ERROR, errors.New("Unknown Binary Format")
+}
+
+func FindCaves(sourceFile string) ([]Cave, error) {
+	var caves []Cave
+	buf, err := ioutil.ReadFile(sourceFile)
+	if err != nil {
+		return nil, err
+	}
+	count := 1
+	caveStart := uint64(0)
+	for i := uint64(0); i < uint64(len(buf)); i++ {
+		switch buf[i] {
+		case 0:
+			if count == 1 {
+				caveStart = i
+			}
+			count++
+		default:
+			if count >= MIN_CAVE_SIZE {
+				caves = append(caves, Cave{Start: caveStart, End: i})
+			}
+			count = 1
+		}
+	}
+	return caves, nil
 }
