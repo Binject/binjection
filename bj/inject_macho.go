@@ -1,9 +1,10 @@
 package bj
 
 import (
+	"bytes"
 	"debug/macho"
-	"io/ioutil"
-	"log"
+	"encoding/binary"
+	"fmt"
 )
 
 // MachoBinject - Inject shellcode into an Mach-O binary
@@ -12,47 +13,69 @@ func MachoBinject(sourceFile string, destFile string, shellcode string, config *
 	// BEGIN CODE CAVE DETECTION SECTION
 	//
 
-	buf, err := ioutil.ReadFile(sourceFile)
-	if err != nil {
-		return err
-	}
-
-	type Cave struct {
-		Start, End uint64
-	}
-	var caves []Cave
-
-	MIN_CAVE_SIZE := 94
-
-	count := 1
-	caveStart := uint64(0)
-	for i := uint64(0); i < uint64(len(buf)); i++ {
-		switch buf[i] {
-		case 0:
-			if count == 1 {
-				caveStart = i
-			}
-			count++
-		default:
-			if count >= MIN_CAVE_SIZE {
-				caves = append(caves, Cave{Start: caveStart, End: i})
-			}
-			count = 1
-		}
-	}
-
 	machoFile, err := macho.Open(sourceFile)
 	if err != nil {
 		return err
 	}
-
-	for _, cave := range caves {
-		for _, section := range machoFile.Sections {
-			if cave.Start >= uint64(section.Offset) && cave.End <= (section.Size+uint64(section.Offset)) &&
-				cave.End-cave.Start >= uint64(MIN_CAVE_SIZE) {
-				log.Printf("Cave found (start/end/size): %d / %d / %d \n", cave.Start, cave.End, cave.End-cave.Start)
+	for _, command := range machoFile.Loads {
+		rawCommand := command.Raw()
+		fmt.Printf("LoadCmd of command is: %x\n", rawCommand[0])
+		if rawCommand[0] == 0x1 {
+			fmt.Printf("32 bit LoadCmdSegment\n")
+			mseg32 := macho.Segment32{}
+			buf := bytes.NewBuffer(rawCommand)
+			err := binary.Read(buf, binary.LittleEndian, &mseg32)
+			if err != nil {
+				return err
 			}
+			fmt.Printf("Your struct sir: %+v\n", mseg32)
 		}
+		if rawCommand[0] == byte(macho.LoadCmdSegment64) {
+			fmt.Printf("64 bit LoadCmdSegment\n")
+			mseg64 := macho.Segment64{}
+			buf := bytes.NewBuffer(rawCommand)
+			err := binary.Read(buf, binary.LittleEndian, &mseg64)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Your struct sir: %+v\n", mseg64)
+			fmt.Printf("Your CmdLen is : %d\n", mseg64.Len)
+			fmt.Printf("Vs RawCmd Len: %d\n", len(rawCommand))
+			//msegHeader := mseg64.
+			//endCmd := mseg64.Offset + uint64(mseg64.Len)
+			//fmt.Printf("Your End Cmd is at: %+v\n", endCmd)
+		}
+	}
+
+	for _, section := range machoFile.Sections {
+		// Only parse text sections
+		if section.SectionHeader.Seg == "__TEXT" {
+			fmt.Printf("Section looks like: %+v\n", section)
+			// Calculate end of sections
+			sectEnd := section.SectionHeader.Size + uint64(section.SectionHeader.Offset)
+			fmt.Printf("Section length is: %v\n", section.SectionHeader.Size)
+			fmt.Printf("Section end is at: %v\n", sectEnd)
+			// Parse section data for last cmd
+			//sectionData, err := section.Data()
+			//if err != nil {
+			//	return err
+			//}
+
+			//fmt.Printf("Section structure looks like: %+v\n", sectionData)
+
+		}
+		//sectionData, err := section.Data()
+		//if err != nil {
+		//	return err
+		//}
+		//firstHeader := sectionData[:3]
+		//fmt.Printf("First four bytes: %+v\n", firstHeader)
+
+		//	if cave.Start >= uint64(section.Offset) && cave.End <= (section.Size+uint64(section.Offset)) &&
+		//	header['MagicNumber'] = hex(struct.unpack("<I", self.bin.read(4))[0])
+
+		//	cave.End-cave.Start >= uint64(MIN_CAVE_SIZE) {
+		//	log.Printf("Cave found (start/end/size): %d / %d / %d \n", cave.Start, cave.End, cave.End-cave.Start)
 	}
 
 	return nil
