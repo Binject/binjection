@@ -35,6 +35,7 @@ func BinaryMagic(filename string) (int, error) {
 	log.Printf("%x\n", buf[:4])
 
 	if bytes.Equal(buf[:4], []byte{0x7F, 'E', 'L', 'F'}) {
+		log.Printf("ELF\n")
 		return ELF, nil
 	}
 
@@ -42,6 +43,7 @@ func BinaryMagic(filename string) (int, error) {
 		if buf[3] == 0xce || buf[3] == 0xcf {
 			// FE ED FA CE - Mach-O binary (32-bit)
 			// FE ED FA CF - Mach-O binary (64-bit)
+			log.Printf("MACHO\n")
 			return MACHO, nil
 		}
 	}
@@ -50,11 +52,13 @@ func BinaryMagic(filename string) (int, error) {
 		if buf[0] == 0xce || buf[0] == 0xcf {
 			// CE FA ED FE - Mach-O binary (reverse byte ordering scheme, 32-bit)
 			// CF FA ED FE - Mach-O binary (reverse byte ordering scheme, 64-bit)
+			log.Printf("MACHO\n")
 			return MACHO, nil
 		}
 	}
 
 	if bytes.Equal(buf[:2], []byte{0x4d, 0x5a}) {
+		log.Printf("PE\n")
 		return PE, nil
 	}
 
