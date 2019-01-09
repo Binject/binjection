@@ -1,5 +1,5 @@
 # binjection
-Injects additional machine instructions into various binary formats.
+Injects additional machine instructions into various binary formats
 
 
 ## Example Help
