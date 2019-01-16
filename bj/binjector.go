@@ -6,7 +6,7 @@ type BinjectConfig struct {
 }
 
 // Binject - Inject shellcode into a binary
-func Binject(sourceFile string, destFile string, shellcode string, config *BinjectConfig) error {
+func Binject(sourceFile string, destFile string, shellcodeFile string, config *BinjectConfig) error {
 
 	binType, err := BinaryMagic(sourceFile)
 	var binject func(string, string, string, *BinjectConfig) error
@@ -20,5 +20,5 @@ func Binject(sourceFile string, destFile string, shellcode string, config *Binje
 	case ERROR:
 		return err
 	}
-	return binject(sourceFile, destFile, shellcode, config)
+	return binject(sourceFile, destFile, shellcodeFile, config)
 }
