@@ -64,5 +64,5 @@ func PeClone(sourceFile string, destFile string) error {
 		return err
 	}
 
-	return peFile.Write(destFile)
+	return peFile.WriteFile(destFile)
 }
