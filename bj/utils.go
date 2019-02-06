@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io/ioutil"
 	"log"
+
+	"github.com/fatih/color"
 )
 
 const (
@@ -14,10 +16,19 @@ const (
 	ELF = iota
 	// MACHO - constant for Mach-O binary format
 	MACHO = iota
+	// FAT - constant for FAT/Mach-O binary format
+	FAT = iota
 	// PE - constant for PE binary format
 	PE = iota
 	// MIN_CAVE_SIZE - the smallest a code cave can be
 	MIN_CAVE_SIZE = 94
+)
+
+var (
+	// Set up colors
+	cyan = color.New(color.FgCyan)
+	blue = color.New(color.FgBlue)
+	red  = color.New(color.FgRed)
 )
 
 type Cave struct {
@@ -60,6 +71,20 @@ func BinaryMagic(filename string) (int, error) {
 	if bytes.Equal(buf[:2], []byte{0x4d, 0x5a}) {
 		log.Printf("PE\n")
 		return PE, nil
+	}
+
+	if bytes.Equal(buf[:3], []byte{0xca, 0xfe, 0xba}) {
+		if buf[3] == 0xbe || buf[3] == 0xbf {
+			log.Println(red.Sprintf("FAT\n"))
+			return FAT, nil
+		}
+	}
+
+	if bytes.Equal(buf[1:4], []byte{0xba, 0xfe, 0xca}) {
+		if buf[0] == 0xbe || buf[0] == 0xbf {
+			log.Println(red.Sprintf("FAT\n"))
+			return FAT, nil
+		}
 	}
 
 	return ERROR, errors.New("Unknown Binary Format")
