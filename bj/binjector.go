@@ -17,6 +17,8 @@ func Binject(sourceFile string, destFile string, shellcodeFile string, config *B
 		binject = MachoBinject
 	case PE:
 		binject = PeBinject
+	case FAT:
+		binject = FatBinject
 	case ERROR:
 		return err
 	}
