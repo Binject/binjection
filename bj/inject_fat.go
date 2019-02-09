@@ -40,6 +40,9 @@ func FatBinject(sourceFile string, destFile string, bdMachoPath string, config *
 	if err != nil {
 		return err
 	}
+	// Write fat headers
+	// Write arch load headers
+	// write machos
 	defer final.Close()
 	return nil
 
