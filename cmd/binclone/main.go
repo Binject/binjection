@@ -53,7 +53,7 @@ func MachoClone(sourceFile string, destFile string) error {
 		return err
 	}
 
-	return machoFile.Write(destFile)
+	return machoFile.WriteFile(destFile)
 }
 
 // PeClone - Clone a PE binary
