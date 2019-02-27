@@ -27,3 +27,6 @@ Usage of ./binjection:
   -shellFile string
     	Shellcode to inject (default "shell.asm")
 ```
+
+## Read more about the project here:
+https://www.symbolcrash.com/2019/02/23/introducing-symbol-crash/
