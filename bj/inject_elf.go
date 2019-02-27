@@ -132,7 +132,7 @@ func staticSilvioMethod(elfFile *elf.File, destFile string, userShellCode []byte
 	//	into the file - text segment p_offset + p_filesz (original)
 	elfFile.Insertion = shellcode
 
-	return elfFile.Write(destFile)
+	return elfFile.WriteFile(destFile)
 }
 
 func dynamicMethod(elfFile *elf.File, destFile string, userShellCode []byte) error {

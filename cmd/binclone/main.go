@@ -42,7 +42,7 @@ func ElfClone(sourceFile string, destFile string) error {
 		return err
 	}
 
-	return elfFile.Write(destFile)
+	return elfFile.WriteFile(destFile)
 }
 
 // MachoClone - Clone an Macho binary
@@ -53,7 +53,7 @@ func MachoClone(sourceFile string, destFile string) error {
 		return err
 	}
 
-	return machoFile.Write(destFile)
+	return machoFile.WriteFile(destFile)
 }
 
 // PeClone - Clone a PE binary
