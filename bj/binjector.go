@@ -1,8 +1,15 @@
 package bj
 
+// Injection Methods
+const (
+	PtNoteInject int = iota
+	SilvioInject     = iota
+)
+
 // BinjectConfig - Configuration Settings for the Binject modules
 type BinjectConfig struct {
-	CodeCaveMode bool
+	CodeCaveMode    bool
+	InjectionMethod int
 }
 
 // Binject - Inject shellcode into a binary

