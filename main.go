@@ -20,7 +20,7 @@ func main() {
 	flag.StringVar(&shellFile, "s", "shell.asm", "Shellcode to Inject")
 
 	injectionMethod := ""
-	flag.StringVar(&injectionMethod, "m", "method", "Injection Method: silvio, note, gonote")
+	flag.StringVar(&injectionMethod, "m", "note", "Injection Method: silvio, note, gonote")
 
 	codeCaveMode := false
 	flag.BoolVar(&codeCaveMode, "c", false, "Auto Code Cave Mode (true/false)")
