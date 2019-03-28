@@ -264,6 +264,7 @@ func dynamicMethod(elfFile *elf.File, destFile string, userShellCode []byte) err
 			log.Println("Shellcode Length: ", sclen)
 			p.Filesz += sclen
 			p.Memsz += sclen
+			break
 		}
 	}
 	sortedSections := elfFile.Sections[:]
