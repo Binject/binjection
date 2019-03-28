@@ -296,5 +296,5 @@ func dynamicMethod(elfFile *elf.File, destFile string, userShellCode []byte) err
 
 	elfFile.Insertion = userShellCode
 
-	return nil
+	return elfFile.WriteFile(destFile)
 }
