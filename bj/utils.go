@@ -31,19 +31,25 @@ var (
 	red  = color.New(color.FgRed)
 )
 
+// Cave - structure describing a code cave
 type Cave struct {
 	Start, End uint64
 }
 
-// BinaryMagic - Identifies the Binary Format of a file by looking at its magic number
-func BinaryMagic(filename string) (int, error) {
+// BinaryMagicFile - Identifies the Binary Format of a file by looking at its magic number
+func BinaryMagicFile(filename string) (int, error) {
 
 	buf, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return ERROR, err
 	}
+	return BinaryMagic(buf)
+}
 
-	log.Printf("%x\n", buf[:4])
+// BinaryMagic - Identifies the Binary Format of a file by looking at its magic number
+func BinaryMagic(buf []byte) (int, error) {
+
+	//log.Printf("%x\n", buf[:4])
 
 	if bytes.Equal(buf[:4], []byte{0x7F, 'E', 'L', 'F'}) {
 		log.Printf("ELF\n")
@@ -90,16 +96,23 @@ func BinaryMagic(filename string) (int, error) {
 	return ERROR, errors.New("Unknown Binary Format")
 }
 
-func FindCaves(sourceFile string) ([]Cave, error) {
-	var caves []Cave
+// FindCavesFile - finds code caves in a file
+func FindCavesFile(sourceFile string) ([]Cave, error) {
 	buf, err := ioutil.ReadFile(sourceFile)
 	if err != nil {
 		return nil, err
 	}
+	return FindCaves(buf)
+}
+
+// FindCaves - finds code caves in a byte array
+func FindCaves(sourceBytes []byte) ([]Cave, error) {
+	var caves []Cave
+
 	count := 1
 	caveStart := uint64(0)
-	for i := uint64(0); i < uint64(len(buf)); i++ {
-		switch buf[i] {
+	for i := uint64(0); i < uint64(len(sourceBytes)); i++ {
+		switch sourceBytes[i] {
 		case 0:
 			if count == 1 {
 				caveStart = i

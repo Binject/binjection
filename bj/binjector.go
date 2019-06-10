@@ -1,5 +1,10 @@
 package bj
 
+import (
+	"io/ioutil"
+	"os"
+)
+
 // Injection Methods
 const (
 	PtNoteInject int = iota
@@ -12,11 +17,38 @@ type BinjectConfig struct {
 	InjectionMethod int
 }
 
-// Binject - Inject shellcode into a binary
-func Binject(sourceFile string, destFile string, shellcodeFile string, config *BinjectConfig) error {
+// BinjectFile - Inject shellcode into a binary file
+func BinjectFile(sourceFile string, destFile string, shellcodeFile string, config *BinjectConfig) error {
 
-	binType, err := BinaryMagic(sourceFile)
-	var binject func(string, string, string, *BinjectConfig) error
+	shellcodeBytes, err := ioutil.ReadFile(shellcodeFile)
+	if err != nil {
+		return err
+	}
+
+	sourceBytes, err := ioutil.ReadFile(sourceFile)
+	if err != nil {
+		return err
+	}
+
+	destBytes, err := Binject(sourceBytes, shellcodeBytes, config)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(destFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.Write(destBytes)
+	return err
+}
+
+// Binject - Inject shellcode into a byte array
+func Binject(sourceBytes []byte, shellcodeBytes []byte, config *BinjectConfig) ([]byte, error) {
+
+	binType, err := BinaryMagic(sourceBytes)
+	var binject func([]byte, []byte, *BinjectConfig) ([]byte, error)
 	switch binType {
 	case ELF:
 		binject = ElfBinject
@@ -24,10 +56,8 @@ func Binject(sourceFile string, destFile string, shellcodeFile string, config *B
 		binject = MachoBinject
 	case PE:
 		binject = PeBinject
-	case FAT:
-		binject = FatBinject
 	case ERROR:
-		return err
+		return nil, err
 	}
-	return binject(sourceFile, destFile, shellcodeFile, config)
+	return binject(sourceBytes, shellcodeBytes, config)
 }

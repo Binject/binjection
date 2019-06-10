@@ -1,14 +1,9 @@
 package bj
 
-import (
-	"log"
-	"os"
-
-	"github.com/Binject/debug/macho"
-)
-
+/* todo - this incomplete functionality should be a configurable option
+		under the Macho injector, FAT is not a top-level exe type
 // FatBinject - Inject a malicious macho binary into a fat file and currupt the cpu execution of the first file
-func FatBinject(sourceFile string, destFile string, bdMachoPath string, config *BinjectConfig) error {
+func FatBinject(sourceBytes []byte, bdMachoPath string, config *BinjectConfig) error {
 	//
 	// Open Fat File, Read Both Macho Types
 	var FatyMachos []macho.File
@@ -47,3 +42,4 @@ func FatBinject(sourceFile string, destFile string, bdMachoPath string, config *
 	return nil
 
 }
+*/

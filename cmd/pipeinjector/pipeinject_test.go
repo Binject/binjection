@@ -1,11 +1,13 @@
-package bj
+package main
 
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"testing"
+	"time"
 )
 
 func CompareFiles(file1, file2 string) bool {
@@ -42,22 +44,49 @@ func CompareFiles(file1, file2 string) bool {
 	}
 }
 
-func Test_Elf_Inject_Static_Nop_1(t *testing.T) {
+func Test_Pipe_Elf_Inject_1(t *testing.T) {
 
-	os.Mkdir("tmp", 0755)
-	err := BinjectFile("test/static_ls", "tmp/static_ls_injected", "test/nop.bin", &BinjectConfig{CodeCaveMode: false, InjectionMethod: SilvioInject})
+	dryPipe := `\\.\pipe\bdfdry`
+	wetPipe := `\\.\pipe\bdfwet`
+	go ListenPipeDry(dryPipe)
+	go ListenPipeWet(wetPipe)
+
+	dryBytes, err := ioutil.ReadFile("test/static_ls")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	if !CompareFiles("test/static_ls_nop_injected", "tmp/static_ls_injected") {
-		t.Error("Generated File Did Not Match!")
-	} else {
-		t.Log("Shellcode Injected Successfully!")
+	err = ioutil.WriteFile(dryPipe, dryBytes, 0555)
+	if err != nil {
+		t.Fatal(err)
 	}
-	os.RemoveAll("tmp")
+
+	time.Sleep(20 * time.Millisecond)
+
+	wetBytes, err := ioutil.ReadFile(wetPipe)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if bytes.Compare(dryBytes, wetBytes) != 0 {
+		t.Log("Shellcode Injected Successfully!")
+	} else {
+		t.Fatal("Generated File Matched!")
+	}
+
+	t.Log("Lengths:", len(dryBytes), len(wetBytes))
+	//t.Log(dryBytes, wetBytes)
+
+	/*
+		if !CompareFiles("test/ls_ptnote_hallo", "tmp/ls_ptnote_hallo.injected") {
+			t.Error("Generated File Did Not Match!")
+		} else {
+			t.Log("Shellcode Injected Successfully!")
+		}
+	*/
 }
 
+/*
 func Test_Elf_Inject_Exec_Hello_1(t *testing.T) {
 
 	os.Mkdir("tmp", 0755)
@@ -89,3 +118,4 @@ func Test_Elf_Inject_Exec_PTNOTE_Hello_1(t *testing.T) {
 	}
 	os.RemoveAll("tmp")
 }
+*/

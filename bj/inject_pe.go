@@ -1,24 +1,25 @@
 package bj
 
 import (
+	"bytes"
 	"debug/pe"
 	"log"
 )
 
 // PeBinject - Inject shellcode into an PE binary
-func PeBinject(sourceFile string, destFile string, shellcode string, config *BinjectConfig) error {
+func PeBinject(sourceBytes []byte, shellcodeBytes []byte, config *BinjectConfig) ([]byte, error) {
 	//
 	// BEGIN CODE CAVE DETECTION SECTION
 	//
 	if config.CodeCaveMode == true {
 		log.Printf("Using Code Cave Method")
-		caves, err := FindCaves(sourceFile)
+		caves, err := FindCaves(sourceBytes)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		peFile, err := pe.Open(sourceFile)
+		peFile, err := pe.NewFile(bytes.NewReader(sourceBytes))
 		if err != nil {
-			return err
+			return nil, err
 		}
 		for _, cave := range caves {
 			for _, section := range peFile.Sections {
@@ -36,5 +37,5 @@ func PeBinject(sourceFile string, destFile string, shellcode string, config *Bin
 	//
 	// END CODE CAVE DETECTION SECTION
 	//
-	return nil
+	return nil, nil
 }
