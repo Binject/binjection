@@ -46,8 +46,9 @@ func CompareFiles(file1, file2 string) bool {
 
 func Test_Pipe_Elf_Inject_1(t *testing.T) {
 
-	dryPipe := `\\.\pipe\bdfdry`
-	wetPipe := `\\.\pipe\bdfwet`
+	dryPipe := MakePipe("bdfdry")
+	wetPipe := MakePipe("bdfwet")
+
 	go ListenPipeDry(dryPipe)
 	go ListenPipeWet(wetPipe)
 

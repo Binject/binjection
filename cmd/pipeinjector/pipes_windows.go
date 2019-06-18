@@ -11,6 +11,11 @@ import (
 	npipe "gopkg.in/natefinch/npipe.v2"
 )
 
+func MakePipe(pipename string) {
+	return `\\.\pipe\` + pipename
+
+}
+
 func ListenPipeDry(pipename string) {
 	ln, err := npipe.Listen(pipename)
 	if err != nil {
