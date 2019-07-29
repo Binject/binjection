@@ -58,7 +58,7 @@ func main() {
 		log.Println("Log file started!")
 	}
 
-	err := bj.Binject(srcFile, dstFile, shellFile, config)
+	err := bj.BinjectFile(srcFile, dstFile, shellFile, config)
 
 	log.Println(err)
 }
