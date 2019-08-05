@@ -30,7 +30,7 @@ func PeBinject(sourceBytes []byte, shellcodeBytes []byte, config *BinjectConfig)
 		sectionAlignment = hdr.SectionAlignment
 		fileAlignment = hdr.FileAlignment
 		scAddr = align(lastSection.Size, fileAlignment, lastSection.Offset) //PointerToRawData
-		shellcode = api.ApplySuffixJmpIntel32(shellcodeBytes, uint32(scAddr), uint32(entryPoint)+uint32(imageBase), binary.LittleEndian)
+		shellcode = api.ApplySuffixJmpIntel32(shellcodeBytes, scAddr, entryPoint+uint32(imageBase), binary.LittleEndian)
 		break
 	case *pe.OptionalHeader64:
 		imageBase = hdr.ImageBase
@@ -38,7 +38,7 @@ func PeBinject(sourceBytes []byte, shellcodeBytes []byte, config *BinjectConfig)
 		sectionAlignment = hdr.SectionAlignment
 		fileAlignment = hdr.FileAlignment
 		scAddr = align(lastSection.Size, fileAlignment, lastSection.Offset) //PointerToRawData
-		shellcode = api.ApplySuffixJmpIntel64(shellcodeBytes, uint32(scAddr), uint32(entryPoint), binary.LittleEndian)
+		shellcode = api.ApplySuffixJmpIntel32(shellcodeBytes, scAddr, entryPoint+uint32(imageBase), binary.LittleEndian)
 		break
 	}
 
