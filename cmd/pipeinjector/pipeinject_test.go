@@ -86,37 +86,3 @@ func Test_Pipe_Elf_Inject_1(t *testing.T) {
 		}
 	*/
 }
-
-/*
-func Test_Elf_Inject_Exec_Hello_1(t *testing.T) {
-
-	os.Mkdir("tmp", 0755)
-	err := BinjectFile("test/static_ls", "tmp/static_ls_injected", "test/hello.bin", &BinjectConfig{CodeCaveMode: false, InjectionMethod: SilvioInject})
-	if err != nil {
-		t.Error(err)
-	}
-
-	if !CompareFiles("test/static_ls_hello_injected", "tmp/static_ls_injected") {
-		t.Error("Generated File Did Not Match!")
-	} else {
-		t.Log("Shellcode Injected Successfully!")
-	}
-	os.RemoveAll("tmp")
-}
-
-func Test_Elf_Inject_Exec_PTNOTE_Hello_1(t *testing.T) {
-
-	os.Mkdir("tmp", 0755)
-	err := BinjectFile("test/static_ls", "tmp/ls_ptnote_hallo.injected", "test/hallo.bin", &BinjectConfig{CodeCaveMode: false, InjectionMethod: PtNoteInject})
-	if err != nil {
-		t.Error(err)
-	}
-
-	if !CompareFiles("test/ls_ptnote_hallo", "tmp/ls_ptnote_hallo.injected") {
-		t.Error("Generated File Did Not Match!")
-	} else {
-		t.Log("Shellcode Injected Successfully!")
-	}
-	os.RemoveAll("tmp")
-}
-*/

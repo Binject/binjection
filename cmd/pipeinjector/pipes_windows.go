@@ -11,7 +11,7 @@ import (
 	npipe "gopkg.in/natefinch/npipe.v2"
 )
 
-func MakePipe(pipename string) {
+func MakePipe(pipename string) string {
 	return `\\.\pipe\` + pipename
 
 }
