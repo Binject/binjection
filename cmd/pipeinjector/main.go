@@ -11,8 +11,8 @@ func main() {
 	flag.StringVar(&pipeName, "p", `\\.\pipe\bdf`, "Pipe base name string")
 	flag.Parse()
 
-	ListenPipeDry(pipeName + "dry")
-	go ListenPipeWet(pipeName + "wet")
+	go ListenPipeDry(pipeName + "dry")
+	ListenPipeWet(pipeName + "wet")
 }
 
 func Inject(dry []byte) (wet []byte, err error) {

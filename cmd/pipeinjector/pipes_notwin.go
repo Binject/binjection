@@ -22,6 +22,8 @@ func MakePipe(pipename string) string {
 }
 
 func ListenPipeDry(namedPipe string) {
+
+	MakePipe(namedPipe)
 	// Open named pipe for reading
 	fmt.Println("Opening named pipe for reading")
 	var buff bytes.Buffer
@@ -38,6 +40,8 @@ func ListenPipeDry(namedPipe string) {
 }
 
 func ListenPipeWet(namedPipe string) {
+
+	MakePipe(namedPipe)
 	// Open named pipe for writing
 	fmt.Println("Opening named pipe for writing")
 	for {
