@@ -26,8 +26,8 @@ func ListenPipeDry(namedPipe string) {
 	MakePipe(namedPipe)
 	// Open named pipe for reading
 	fmt.Println("Opening named pipe for reading")
-	var buff bytes.Buffer
 	for {
+		var buff bytes.Buffer
 		stdout, err := os.OpenFile(namedPipe, os.O_RDONLY, 0600)
 		if err != nil {
 			log.Fatalf("Open(%s) failed: %v", namedPipe, err)
