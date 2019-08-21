@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -46,8 +47,12 @@ func CompareFiles(file1, file2 string) bool {
 
 func Test_Pipe_Elf_Inject_1(t *testing.T) {
 
-	dryPipe := MakePipe("bdfdry")
-	wetPipe := MakePipe("bdfwet")
+	tmpDir := "./"
+	//tmpDir, _ := ioutil.TempDir("", "named-pipes")
+	namedPipe := filepath.Join(tmpDir, "bdf")
+
+	dryPipe := MakePipe(namedPipe + "dry")
+	wetPipe := MakePipe(namedPipe + "wet")
 
 	go ListenPipeDry(dryPipe)
 	go ListenPipeWet(wetPipe)

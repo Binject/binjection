@@ -12,7 +12,7 @@ func main() {
 	flag.Parse()
 
 	ListenPipeDry(pipeName + "dry")
-	ListenPipeWet(pipeName + "wet")
+	go ListenPipeWet(pipeName + "wet")
 }
 
 func Inject(dry []byte) (wet []byte, err error) {

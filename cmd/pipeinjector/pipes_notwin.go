@@ -6,19 +6,19 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
 	"syscall"
 )
 
 func MakePipe(pipename string) string {
-	// Create named pipe
-	tmpDir, _ := ioutil.TempDir("", "named-pipes")
-	namedPipe := filepath.Join(tmpDir, pipename)
-	syscall.Mkfifo(namedPipe, 0600)
-	return namedPipe
+	if _, err := os.Stat(pipename); os.IsNotExist(err) {
+		// Create named pipe
+		syscall.Mkfifo(pipename, 0600)
+	} else if err != nil {
+		log.Fatal(err)
+	}
+	return pipename
 }
 
 func ListenPipeDry(namedPipe string) {
