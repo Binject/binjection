@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
 
 	"github.com/Binject/binjection/bj"
 )
@@ -17,5 +18,13 @@ func main() {
 
 func Inject(dry []byte) (wet []byte, err error) {
 	config := &bj.BinjectConfig{CodeCaveMode: false}
-	return bj.Binject(dry, []byte{0, 0, 0, 0}, config)
+
+	// *** Testing purposes
+	shellcodeBytes, err := ioutil.ReadFile("./test.bin")
+	if err != nil {
+		return nil, err
+	}
+	return bj.Binject(dry, shellcodeBytes, config)
+	// *** Testing purposes
+	//return bj.Binject(dry, []byte{0, 0, 0, 0}, config)
 }
