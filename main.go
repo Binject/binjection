@@ -1,39 +1,36 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"os"
 
 	"github.com/Binject/binjection/bj"
+	"github.com/akamensky/argparse"
 )
 
 func main() {
 
-	srcFile := ""
-	flag.StringVar(&srcFile, "i", "a.out", "Input File")
+	parser := argparse.NewParser("binjection", "Injects shellcode into PE, ELF, or Mach-O executables and shared libraries")
+	srcFile := parser.String("f", "in", &argparse.Options{Required: true, Help: "Input PE, ELF, or Mach-o binary to inject."})
+	shellFile := parser.String("s", "sc", &argparse.Options{Required: true,
+		Default: "shellcode.bin", Help: "Shellcode to Inject"})
 
-	dstFile := ""
-	flag.StringVar(&dstFile, "o", "injected.out", "Output File")
+	dstFile := parser.String("o", "out", &argparse.Options{Required: false,
+		Default: "injected.out", Help: "Output file"})
+	injectionMethod := parser.String("m", "method", &argparse.Options{Required: false,
+		Default: "note", Help: "Injection Method (silvio or note)"})
+	codeCaveMode := parser.Flag("c", "codeCave", &argparse.Options{Required: false,
+		Help: "Auto Code Cave Mode (true/false)"})
+	logFile := parser.String("l", "log", &argparse.Options{Required: false,
+		Help: "Log to the Given File"})
+	if err := parser.Parse(os.Args); err != nil {
+		log.Println(parser.Usage(err))
+		return
+	}
+	config := &bj.BinjectConfig{CodeCaveMode: *codeCaveMode}
 
-	shellFile := ""
-	flag.StringVar(&shellFile, "s", "shell.asm", "Shellcode to Inject")
-
-	injectionMethod := ""
-	flag.StringVar(&injectionMethod, "m", "note", "Injection Method: silvio, note, gonote")
-
-	codeCaveMode := false
-	flag.BoolVar(&codeCaveMode, "c", false, "Auto Code Cave Mode (true/false)")
-
-	logFile := ""
-	flag.StringVar(&logFile, "l", "", "Log to the Given File")
-
-	flag.Parse()
-
-	config := &bj.BinjectConfig{CodeCaveMode: codeCaveMode}
-
-	if injectionMethod != "" {
-		switch injectionMethod {
+	if *injectionMethod != "" {
+		switch *injectionMethod {
 		case "silvio":
 			config.InjectionMethod = bj.SilvioInject
 
@@ -48,8 +45,8 @@ func main() {
 		}
 	}
 
-	if logFile != "" {
-		logTown, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if *logFile != "" {
+		logTown, err := os.OpenFile(*logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
 			log.Fatalf("error opening file: %v", err)
 		}
@@ -58,7 +55,7 @@ func main() {
 		log.Println("Log file started!")
 	}
 
-	err := bj.BinjectFile(srcFile, dstFile, shellFile, config)
+	err := bj.BinjectFile(*srcFile, *dstFile, *shellFile, config)
 
 	log.Println(err)
 }
