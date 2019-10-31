@@ -3,7 +3,6 @@ package main
 import (
 	"archive/tar"
 	"bytes"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/akamensky/argparse"
 	"github.com/mholt/archiver"
 
 	"github.com/Binject/binjection/bj"
@@ -19,24 +19,27 @@ import (
 )
 
 func main() {
-	cwd := ""
-	testfile := ""
-	outfile := ""
 	dir, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	flag.StringVar(&cwd, "d", dir, "Working Directory")
-	flag.StringVar(&testfile, "f", "", "File to inject (oneshot test mode)")
-	flag.StringVar(&outfile, "o", "", "Output file (oneshot test mode)")
-	flag.Parse()
-	if outfile == "" {
-		outfile = testfile + ".b"
+	parser := argparse.NewParser("bdf-ng", "Backdoor Factory: The Next Generation")
+	cwd := parser.String("d", "cwd", &argparse.Options{Required: false,
+		Default: dir, Help: "Working Directory"})
+	testfile := parser.String("s", "sc", &argparse.Options{Required: true,
+		Help: "File to inject (oneshot test mode)"})
+	outfile := parser.String("o", "out", &argparse.Options{Required: false,
+		Help: "Output file (oneshot test mode)"})
+	if err := parser.Parse(os.Args); err != nil {
+		log.Println(parser.Usage(err))
+		return
+	}
+	if *outfile == "" {
+		*outfile = *testfile + ".b"
 	}
 
-	if testfile != "" { // One-shot test mode
-		f, err := os.Open(testfile)
+	if *testfile != "" { // One-shot test mode
+		f, err := os.Open(*testfile)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -48,7 +51,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = ioutil.WriteFile(outfile, wet, 0755)
+		err = ioutil.WriteFile(*outfile, wet, 0755)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -59,16 +62,16 @@ func main() {
 	if runtime.GOOS == "windows" {
 		pipeName = `\\.\pipe\` + "bdf"
 	} else {
-		pipeName = filepath.Join(cwd, "bdf")
+		pipeName = filepath.Join(*cwd, "bdf")
 	}
 	dryPipe := pipeName + "dry"
 	wetPipe := pipeName + "wet"
-	capletPath := filepath.Join(cwd, "binject.cap")
+	capletPath := filepath.Join(*cwd, "binject.cap")
 
 	if err := GenerateCaplet(capletPath); err != nil {
 		log.Fatal(err)
 	}
-	if err := GenerateCapletScript(filepath.Join(cwd, "binject.js"), CapletScriptConfig{DryPipe: dryPipe, WetPipe: wetPipe}); err != nil {
+	if err := GenerateCapletScript(filepath.Join(*cwd, "binject.js"), CapletScriptConfig{DryPipe: dryPipe, WetPipe: wetPipe}); err != nil {
 		log.Fatal(err)
 	}
 
