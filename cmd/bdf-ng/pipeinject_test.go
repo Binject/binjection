@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/Binject/binjection/bj"
 )
 
 func CompareFiles(file1, file2 string) bool {
@@ -54,7 +56,9 @@ func Test_Pipe_Elf_Inject_1(t *testing.T) {
 	dryPipe := MakePipe(namedPipe + "dry")
 	wetPipe := MakePipe(namedPipe + "wet")
 
-	go ListenPipeDry(dryPipe)
+	config := &bj.BinjectConfig{CodeCaveMode: false}
+
+	go ListenPipeDry(dryPipe, config)
 	go ListenPipeWet(wetPipe)
 
 	dryBytes, err := ioutil.ReadFile("test/static_ls")

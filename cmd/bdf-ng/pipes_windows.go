@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 
+	"github.com/Binject/binjection/bj"
 	npipe "gopkg.in/natefinch/npipe.v2"
 )
 
@@ -16,7 +17,7 @@ func MakePipe(pipename string) string {
 
 }
 
-func ListenPipeDry(pipename string) {
+func ListenPipeDry(pipename string, config *bj.BinjectConfig) {
 	ln, err := npipe.Listen(pipename)
 	if err != nil {
 		log.Fatalf("Listen(%s) failed: %v", pipename, err)
@@ -30,7 +31,7 @@ func ListenPipeDry(pipename string) {
 		if err != nil {
 			log.Fatalf("Error accepting connection: %v", err)
 		}
-		go handleDryConnection(conn)
+		go handleDryConnection(conn, config)
 	}
 }
 
@@ -54,14 +55,14 @@ func ListenPipeWet(pipename string) {
 
 var lastBytes []byte
 
-func handleDryConnection(conn net.Conn) {
+func handleDryConnection(conn net.Conn, config *bj.BinjectConfig) {
 	r := bufio.NewReader(conn)
 	b, err := ioutil.ReadAll(r)
 	if err != nil {
 		log.Fatalf("Error reading from connection: %v", err)
 	}
 
-	i, err := Inject(b)
+	i, err := Inject(b, config)
 	if err != nil {
 		log.Fatalf("Error injecting: %v", err)
 	}

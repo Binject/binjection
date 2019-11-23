@@ -3,6 +3,8 @@ package bj
 import (
 	"io/ioutil"
 	"os"
+
+	"github.com/Binject/shellcode"
 )
 
 // Injection Methods
@@ -15,6 +17,8 @@ const (
 type BinjectConfig struct {
 	CodeCaveMode    bool
 	InjectionMethod int
+
+	Repo *shellcode.Repo
 }
 
 // BinjectFile - Inject shellcode into a binary file

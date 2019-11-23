@@ -9,6 +9,8 @@ import (
 	"log"
 	"os"
 	"syscall"
+
+	"github.com/Binject/binjection/bj"
 )
 
 func MakePipe(pipename string) string {
@@ -21,7 +23,7 @@ func MakePipe(pipename string) string {
 	return pipename
 }
 
-func ListenPipeDry(namedPipe string) {
+func ListenPipeDry(namedPipe string, config *bj.BinjectConfig) {
 
 	MakePipe(namedPipe)
 	// Open named pipe for reading
@@ -35,7 +37,7 @@ func ListenPipeDry(namedPipe string) {
 		io.Copy(&buff, stdout)
 		stdout.Close()
 
-		go handleDryConnection(buff)
+		go handleDryConnection(buff, config)
 	}
 }
 
@@ -65,11 +67,11 @@ func ListenPipeWet(namedPipe string) {
 
 var lastBytes []byte
 
-func handleDryConnection(buff bytes.Buffer) {
+func handleDryConnection(buff bytes.Buffer, config *bj.BinjectConfig) {
 
-	i, err := Inject(buff.Bytes())
+	i, err := Inject(buff.Bytes(), config)
 	if err != nil {
-		log.Fatalf("Error injecting: %v", err)
+		log.Printf("Error injecting: %v\n", err)
 	}
 	log.Println("Set lastBytes: ", len(lastBytes))
 	lastBytes = i

