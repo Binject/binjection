@@ -17,7 +17,7 @@ func main() {
 	flag.StringVar(&dstFile, "o", "injected.out", "Output file")
 	flag.Parse()
 
-	t, err := bj.BinaryMagic(srcFile)
+	t, err := bj.BinaryMagicFile(srcFile)
 	if err != nil {
 		log.Fatal(err)
 	}
