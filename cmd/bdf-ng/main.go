@@ -160,6 +160,8 @@ func Inject(dry []byte, config *bj.BinjectConfig) (wet []byte, err error) {
 			return bb.Bytes(), nil
 		}
 
+	case "x-msdownload":
+		fallthrough
 	case "x-executable":
 
 		bintype, err := bj.BinaryMagic(dry)
