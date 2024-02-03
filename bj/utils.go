@@ -2,9 +2,10 @@ package bj
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
-	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/fatih/color"
 )
@@ -24,6 +25,15 @@ const (
 	MIN_CAVE_SIZE = 94
 )
 
+const (
+	// ERROR - constant for an error
+	Error = iota
+	// 32 binary architecture
+	BinArch32 = iota
+	// 64 binary architecture
+	BinArch64 = iota
+)
+
 var (
 	// Set up colors
 	cyan = color.New(color.FgCyan)
@@ -36,14 +46,65 @@ type Cave struct {
 	Start, End uint64
 }
 
+// BinArchFile - Identifies the binary architecture of a file by looking at its header
+func BinArchFile(filename string) (int, error) {
+
+	buf, err := os.ReadFile(filename)
+	if err != nil {
+		return ERROR, err
+	}
+	return BinArch(buf)
+}
+
 // BinaryMagicFile - Identifies the Binary Format of a file by looking at its magic number
 func BinaryMagicFile(filename string) (int, error) {
 
-	buf, err := ioutil.ReadFile(filename)
+	buf, err := os.ReadFile(filename)
 	if err != nil {
 		return ERROR, err
 	}
 	return BinaryMagic(buf)
+}
+
+// BinArch - Identifies the binary architecture of a file by looking at its magic number
+func BinArch(buf []byte) (int, error) {
+	bm, err := BinaryMagic(buf)
+	if err != nil {
+		return Error, err
+	}
+
+	switch bm {
+	case ELF:
+		if bytes.Equal(buf[4:5], []byte{0x1}) {
+			return BinArch32, nil
+		} else if bytes.Equal(buf[4:5], []byte{0x2}) {
+			return BinArch64, nil
+		} else {
+			return Error, errors.New("Possibly ELF format but didn't find binary arch type")
+		}
+	case MACHO:
+		if bytes.Equal(buf[:4], []byte{0xfe, 0xed, 0xfa, 0xce}) || bytes.Equal(buf[:4], []byte{0xce, 0xfa, 0xed, 0xfe}) {
+			return BinArch32, nil
+		} else if bytes.Equal(buf[:4], []byte{0xfe, 0xed, 0xfa, 0xcf}) || bytes.Equal(buf[:4], []byte{0xcf, 0xfa, 0xed, 0xfe}) {
+			return BinArch64, nil
+		} else {
+			return Error, errors.New("Possibly MACH-O format but didn't find binary arch type")
+		}
+	case PE:
+		// at 0x3c is the offset for the pe header as a DWORD 32 bit uint
+		offset := binary.LittleEndian.Uint32(buf[0x3c : 0x3c+4])
+		if bytes.Equal(buf[offset+4:offset+6], []byte{0x64, 0x86}) {
+			return BinArch64, nil
+		} else if bytes.Equal(buf[offset+4:offset+6], []byte{0x4c, 0x01}) {
+			return BinArch32, nil
+		} else {
+			return Error, errors.New("Possibly PE format but didn't find binary arch type")
+		}
+	case FAT:
+		return BinArch32, nil
+	default:
+		return Error, errors.New("Unknown Binary Format")
+	}
 }
 
 // BinaryMagic - Identifies the Binary Format of a file by looking at its magic number
@@ -98,7 +159,7 @@ func BinaryMagic(buf []byte) (int, error) {
 
 // FindCavesFile - finds code caves in a file
 func FindCavesFile(sourceFile string) ([]Cave, error) {
-	buf, err := ioutil.ReadFile(sourceFile)
+	buf, err := os.ReadFile(sourceFile)
 	if err != nil {
 		return nil, err
 	}
