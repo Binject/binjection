@@ -53,7 +53,7 @@ func BinArchFile(filename string) (int, error) {
 	if err != nil {
 		return ERROR, err
 	}
-	return BinaryMagic(buf)
+	return BinArch(buf)
 }
 
 // BinaryMagicFile - Identifies the Binary Format of a file by looking at its magic number
@@ -83,9 +83,9 @@ func BinArch(buf []byte) (int, error) {
 			return Error, errors.New("Possibly ELF format but didn't find binary arch type")
 		}
 	case MACHO:
-		if bytes.Equal(buf[:4], []byte{0xce, 0xfe, 0xed, 0xfa}) || bytes.Equal(buf[:4], []byte{0xfe, 0xed, 0xfa, 0xce}) {
+		if bytes.Equal(buf[:4], []byte{0xfe, 0xed, 0xfa, 0xce}) || bytes.Equal(buf[:4], []byte{0xce, 0xfa, 0xed, 0xfe}) {
 			return BinArch32, nil
-		} else if bytes.Equal(buf[:4], []byte{0xcf, 0xfe, 0xed, 0xfa}) || bytes.Equal(buf[:4], []byte{0xfe, 0xed, 0xfa, 0xcf}) {
+		} else if bytes.Equal(buf[:4], []byte{0xfe, 0xed, 0xfa, 0xcf}) || bytes.Equal(buf[:4], []byte{0xcf, 0xfa, 0xed, 0xfe}) {
 			return BinArch64, nil
 		} else {
 			return Error, errors.New("Possibly MACH-O format but didn't find binary arch type")
