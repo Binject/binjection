@@ -3,8 +3,8 @@ package bj
 import (
 	"bytes"
 	"errors"
-	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/fatih/color"
 )
@@ -39,7 +39,7 @@ type Cave struct {
 // BinaryMagicFile - Identifies the Binary Format of a file by looking at its magic number
 func BinaryMagicFile(filename string) (int, error) {
 
-	buf, err := ioutil.ReadFile(filename)
+	buf, err := os.ReadFile(filename)
 	if err != nil {
 		return ERROR, err
 	}
@@ -98,7 +98,7 @@ func BinaryMagic(buf []byte) (int, error) {
 
 // FindCavesFile - finds code caves in a file
 func FindCavesFile(sourceFile string) ([]Cave, error) {
-	buf, err := ioutil.ReadFile(sourceFile)
+	buf, err := os.ReadFile(sourceFile)
 	if err != nil {
 		return nil, err
 	}
